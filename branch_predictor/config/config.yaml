@@ -1,0 +1,134 @@
+# LOABP Configuration File
+# Lightweight Online-Adaptive Branch Predictor
+
+# =============================================================================
+# Global Settings
+# =============================================================================
+simulation:
+  warmup_instructions: 1000000      # Instructions for warmup (no stats)
+  simulation_instructions: 10000000  # Instructions to simulate
+  verbose: true
+  log_interval: 100000              # Print stats every N instructions
+
+# =============================================================================
+# Global History Register
+# =============================================================================
+history:
+  length: 64                        # Global history length (bits)
+  use_path_history: true            # Include path/address history
+  path_history_bits: 16             # Bits for path history
+
+# =============================================================================
+# Perceptron Predictor (Fast Path)
+# =============================================================================
+perceptron:
+  enabled: true
+  num_tables: 1                     # Number of perceptron tables
+  table_size: 4096                  # Entries per table
+  weight_bits: 8                    # Bits per weight (-128 to 127)
+  history_length: 64                # History length for perceptron
+  theta: 1.93                       # Training threshold multiplier
+  # theta_value = floor(1.93 * history_length + 14)
+
+# =============================================================================
+# Binary Neural Network (H2P Path)
+# =============================================================================
+bnn:
+  enabled: true
+  input_size: 64                    # Input features (matches history)
+  hidden_sizes: [32, 16]            # Hidden layer sizes
+  use_batch_norm: false             # Batch normalization (not for online)
+  
+  # Quantization
+  weight_bits: 1                    # 1-bit weights (+1/-1)
+  activation_bits: 1                # 1-bit activations
+  
+  # Online training
+  learning_rate: 0.01
+  use_straight_through: true        # Straight-through estimator for gradients
+  momentum: 0.0                     # Momentum (0 for pure online)
+
+# =============================================================================
+# H2P (Hard-to-Predict) Detector
+# =============================================================================
+h2p_detector:
+  enabled: true
+  tracking_window: 1000             # Window for misprediction tracking
+  h2p_threshold: 0.3                # Misprediction rate to classify as H2P
+  confidence_threshold: 0.1         # Low confidence threshold
+  max_tracked_branches: 8192        # Maximum branches to track
+  
+  # Dynamic threshold adjustment
+  adaptive_threshold: true
+  min_threshold: 0.1
+  max_threshold: 0.5
+
+# =============================================================================
+# Hybrid Controller
+# =============================================================================
+hybrid:
+  # Selection strategy: 'confidence', 'h2p_only', 'always_bnn', 'always_perceptron'
+  selection_strategy: 'confidence'
+  
+  # Confidence-based selection
+  perceptron_confidence_threshold: 10  # Use BNN if |sum| < threshold
+  
+  # Override settings
+  use_bnn_for_h2p: true             # Always use BNN for detected H2P branches
+  fallback_to_perceptron: true      # Use perceptron if BNN unavailable
+
+# =============================================================================
+# Training Settings
+# =============================================================================
+training:
+  # When to update
+  update_on_correct: false          # Update even on correct predictions
+  update_on_mispredict: true        # Always update on misprediction
+  update_on_low_confidence: true    # Update when confidence is low
+  
+  # Perceptron training
+  perceptron_learning_rate: 1       # Weight increment/decrement
+  
+  # BNN training
+  bnn_train_frequency: 1            # Train BNN every N mispredictions
+  bnn_mini_batch: 1                 # Mini-batch size (1 for online)
+
+# =============================================================================
+# Hardware Budget Estimation
+# =============================================================================
+hardware:
+  target_budget_kb: 32              # Target hardware budget in KB
+  
+  # Component budgets (estimated)
+  history_register_bits: 64
+  perceptron_storage_kb: 16         # 4096 * 64 * 8-bit weights / 8 / 1024
+  bnn_storage_kb: 8                 # Estimated BNN storage
+  h2p_table_kb: 8                   # H2P tracking table
+
+# =============================================================================
+# Baseline Predictors (for comparison)
+# =============================================================================
+baselines:
+  gshare:
+    enabled: true
+    table_size: 16384               # 16K entries
+    history_length: 14              # 14-bit history
+  
+  bimodal:
+    enabled: true
+    table_size: 16384               # 16K entries
+  
+  tage:
+    enabled: false                  # TAGE is complex, optional
+    num_tables: 5
+    base_table_size: 4096
+
+# =============================================================================
+# Output Settings
+# =============================================================================
+output:
+  results_dir: 'results'
+  save_detailed_stats: true
+  save_per_branch_stats: false      # Warning: can be large
+  plot_results: true
+  export_format: 'csv'              # 'csv', 'json', or 'both'
