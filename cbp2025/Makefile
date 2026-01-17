@@ -28,8 +28,19 @@ LIBS = -lcbp -lz
 FLAGS = -std=c++17 -L./lib $(LIBS) $(OPT)
 CPPFLAGS = -std=c++17 $(OPT)
 
+# Select predictor: batage, apex
+PREDICTOR = apex
+
+ifeq ($(PREDICTOR), batage)
 OBJ = cond_branch_predictor_interface.o batage_sc_predictor.o
 DEPS = cbp.h cond_branch_predictor_interface.h batage_sc_predictor.h
+else ifeq ($(PREDICTOR), apex)
+OBJ = apex_predictor.o
+DEPS = cbp.h apex_predictor.h
+else
+OBJ = cond_branch_predictor_interface.o batage_sc_predictor.o
+DEPS = cbp.h cond_branch_predictor_interface.h batage_sc_predictor.h
+endif
 
 DEBUG=0
 ifeq ($(DEBUG), 1)
